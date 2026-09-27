@@ -1,0 +1,16 @@
+{
+  "name": "spotify-lyrics-discord",
+  "version": "1.0.0",
+  "description": "Syncs your Discord custom status to the lyrics of the song currently playing on Spotify.",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node -r dotenv/config index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  }
+}
