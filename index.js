@@ -1,24 +1,10 @@
 /**
  * spotify-lyrics-discord
- * ------------------------------------------------------------
- * Reads what you're currently playing on Spotify (official API),
- * fetches synced lyrics from LRCLIB (free, no key needed), and
- * updates your Discord custom status to follow the current line.
- *
- * IMPORTANT:
- * Updating your OWN Discord custom status via the REST API using
- * a user token (not a bot token) is technically against Discord's
- * Terms of Service ("self-botting" / API automation). Discord
- * rarely enforces this for low-volume personal use like this, but
- * the risk (account warning/ban) is real and entirely on you.
- * Use at your own risk.
- *
- * Setup: see README.md in this folder.
  */
 
-const fetchFn = globalThis.fetch; // Node 18+ has fetch built in
+const fetchFn = globalThis.fetch; 
 
-// ---- Config (loaded from environment variables, see .env.example) ----
+
 const {
   SPOTIFY_CLIENT_ID,
   SPOTIFY_CLIENT_SECRET,
@@ -37,17 +23,15 @@ if (!SPOTIFY_CLIENT_ID || !SPOTIFY_CLIENT_SECRET || !SPOTIFY_REFRESH_TOKEN || !D
 
 const POLL_MS = parseInt(POLL_INTERVAL_MS, 10);
 
-// ---- State ----
+
 let spotifyAccessToken = null;
 let spotifyTokenExpiresAt = 0;
-let cachedLyrics = null;       // { synced: [{time, text}, ...] } or null if no synced lyrics
-let cachedTrackKey = null;     // "artist - title" used to know when the song changed
-let lastSentStatusText = null; // avoid redundant Discord API calls
-let originalStatus = undefined; // to restore on exit
+let cachedLyrics = null;       
+let cachedTrackKey = null;     
+let lastSentStatusText = null; 
+let originalStatus = undefined; 
 
-// ---------------------------------------------------------------
-// Spotify: refresh access token using the stored refresh token
-// ---------------------------------------------------------------
+
 async function getSpotifyAccessToken() {
   if (spotifyAccessToken && Date.now() < spotifyTokenExpiresAt - 5000) {
     return spotifyAccessToken;
@@ -76,17 +60,14 @@ async function getSpotifyAccessToken() {
   return spotifyAccessToken;
 }
 
-// ---------------------------------------------------------------
-// Spotify: get what's currently playing
-// Returns null if nothing is playing / playback is paused.
-// ---------------------------------------------------------------
+
 async function getCurrentlyPlaying() {
   const token = await getSpotifyAccessToken();
   const res = await fetchFn('https://api.spotify.com/v1/me/player/currently-playing', {
     headers: { Authorization: `Bearer ${token}` },
   });
 
-  if (res.status === 204) return null; // nothing playing
+  if (res.status === 204) return null; 
   if (!res.ok) {
     console.error(`Spotify currently-playing error: ${res.status}`);
     return null;
@@ -103,10 +84,7 @@ async function getCurrentlyPlaying() {
   };
 }
 
-// ---------------------------------------------------------------
-// LRCLIB: fetch synced lyrics for a track
-// Docs: https://lrclib.net/docs
-// ---------------------------------------------------------------
+
 async function fetchLyrics(track) {
   const params = new URLSearchParams({
     track_name: track.title,
@@ -133,7 +111,7 @@ async function fetchLyrics(track) {
   return { synced: parseLrc(data.syncedLyrics) };
 }
 
-// Parses standard LRC format: "[mm:ss.xx] line text"
+
 function parseLrc(lrcText) {
   const lines = [];
   const re = /\[(\d{2}):(\d{2})(?:\.(\d{2,3}))?\]\s*(.*)/;
@@ -149,7 +127,7 @@ function parseLrc(lrcText) {
   return lines.sort((a, b) => a.time - b.time);
 }
 
-// Given synced lines and current playback position, find the active line
+
 function getCurrentLine(synced, progressMs) {
   let current = null;
   for (const line of synced) {
@@ -159,11 +137,9 @@ function getCurrentLine(synced, progressMs) {
   return current;
 }
 
-// ---------------------------------------------------------------
-// Discord: update custom status text
-// ---------------------------------------------------------------
+
 async function setDiscordStatus(text) {
-  if (text === lastSentStatusText) return; // nothing changed, skip the call
+  if (text === lastSentStatusText) return; 
   lastSentStatusText = text;
 
   const res = await fetchFn('https://discord.com/api/v9/users/@me/settings', {
@@ -198,15 +174,13 @@ async function getDiscordCurrentStatus() {
   return data.custom_status ?? null;
 }
 
-// ---------------------------------------------------------------
-// Main loop
-// ---------------------------------------------------------------
+
 async function tick() {
   try {
     const track = await getCurrentlyPlaying();
 
     if (!track) {
-      await setDiscordStatus(null); // clear status when nothing is playing
+      await setDiscordStatus(null); 
       cachedTrackKey = null;
       cachedLyrics = null;
       return;
@@ -226,7 +200,7 @@ async function tick() {
       const line = getCurrentLine(cachedLyrics.synced, track.progressMs);
       await setDiscordStatus(line ? line.text : trackKey);
     } else {
-      // Fallback: no synced lyrics available, just show "Artist - Title"
+      
       await setDiscordStatus(trackKey);
     }
   } catch (err) {
@@ -239,9 +213,9 @@ async function main() {
   originalStatus = await getDiscordCurrentStatus();
 
   const interval = setInterval(tick, POLL_MS);
-  tick(); // run immediately on start
+  tick(); 
 
-  // Restore the original Discord status on exit (Ctrl+C)
+
   const shutdown = async () => {
     clearInterval(interval);
     console.log('\nRestoring previous Discord status...');
